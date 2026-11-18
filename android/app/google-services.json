@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "482234374904",
+    "project_id": "smart-library-27213",
+    "storage_bucket": "smart-library-27213.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:482234374904:android:3c4371601f065163e3790d",
+        "android_client_info": {
+          "package_name": "com.example.smart_library"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "482234374904-93v530qtvmtcc956ulgqao8j0lfpjn7v.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyArg9IWbXw4Gpgc7bKO7k7DuT21MHjvTbM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "482234374904-93v530qtvmtcc956ulgqao8j0lfpjn7v.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

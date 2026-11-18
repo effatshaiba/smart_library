@@ -3,6 +3,7 @@ import 'member_dashboard.dart';
 import 'member_book_catalog.dart';
 import 'member_borrowing_history.dart';
 import 'placeholder_screen.dart';
+import 'screens/login_screen.dart';
 import 'screens/shared/notifications_screen.dart';
 
 class MemberProfileScreen extends StatelessWidget {
@@ -336,6 +337,52 @@ class MemberProfileScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
+
+            // Log Out Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red.shade600,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                ),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (dialogContext) => AlertDialog(
+                      title: const Text('Log Out'),
+                      content: const Text('Are you sure you want to log out of your account?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(dialogContext),
+                          child: const Text('Cancel'),
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                          onPressed: () {
+                            Navigator.pop(dialogContext);
+                            Navigator.pushAndRemoveUntil(
+                              context,
+                              MaterialPageRoute(builder: (_) => const LoginScreen()),
+                              (route) => false,
+                            );
+                          },
+                          child: const Text('Log Out', style: TextStyle(color: Colors.white)),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 20),
+                label: const Text(
+                  'Log Out of Account',
+                  style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
           ],
         ),
       ),
