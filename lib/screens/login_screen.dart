@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'change_password_screen.dart';
 import '../admin_dashboard.dart';
 import '../member_dashboard.dart';
@@ -12,21 +13,76 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
   bool _obscurePassword = true;
   bool _rememberPassword = true;
+  bool _isLoading = false;
   String _selectedRole = 'admin'; // 'admin' or 'member'
 
-  void _handleSignIn() {
-    if (_selectedRole == 'admin') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const AdminDashboard()),
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleSignIn() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter both email and password')),
       );
-    } else {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const MemberDashboardScreen()),
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
       );
+
+      if (!mounted) return;
+
+      if (_selectedRole == 'admin') {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminDashboard()),
+        );
+      } else {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const MemberDashboardScreen()),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      String message = e.message ?? 'Login failed';
+      if (e.code == 'user-not-found') {
+        message = 'No user found for that email.';
+      } else if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        message = 'Invalid email or password.';
+      } else if (e.code == 'invalid-email') {
+        message = 'Please enter a valid email address.';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Something went wrong: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -56,7 +112,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: const Icon(Icons.nightlight_round, size: 20, color: Color(0xFF64748B)),
                     ),
                     onPressed: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => const PlaceholderScreen(title: 'Dark Mode Settings')));
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const PlaceholderScreen(title: 'Dark Mode Settings'),
+                        ),
+                      );
                     },
                   ),
                 ],
@@ -226,6 +287,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         border: Border.all(color: const Color(0xFFE2E8F0)),
                       ),
                       child: TextField(
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
                         decoration: InputDecoration(
                           hintText: _selectedRole == 'admin' ? 'admin@smartlibrary.edu' : 'student@smuct.edu.bd',
                           hintStyle: TextStyle(color: Colors.grey.shade500),
@@ -276,9 +339,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         border: Border.all(color: const Color(0xFFE2E8F0)),
                       ),
                       child: TextField(
+                        controller: _passwordController,
                         obscureText: _obscurePassword,
-                        controller: TextEditingController(text: '••••••••••••'),
                         decoration: InputDecoration(
+                          hintText: 'Enter your password',
+                          hintStyle: TextStyle(color: Colors.grey.shade500),
                           prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFF64748B), size: 20),
                           suffixIcon: IconButton(
                             icon: Icon(
@@ -342,22 +407,28 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           elevation: 0,
                         ),
-                        onPressed: _handleSignIn,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.login_rounded, color: Colors.white, size: 20),
-                            const SizedBox(width: 8),
-                            Text(
-                              _selectedRole == 'admin' ? 'Sign In as Admin' : 'Sign In as Member',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                        onPressed: _isLoading ? null : _handleSignIn,
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                              )
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.login_rounded, color: Colors.white, size: 20),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    _selectedRole == 'admin' ? 'Sign In as Admin' : 'Sign In as Member',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
-                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
