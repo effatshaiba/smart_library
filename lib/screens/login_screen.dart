@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'change_password_screen.dart';
+import 'registration_screen.dart';
 import '../admin_dashboard.dart';
 import '../member_dashboard.dart';
 import '../placeholder_screen.dart';
@@ -42,22 +44,78 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      final UserCredential userCredential =
+          await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
 
+      final String? uid = userCredential.user?.uid;
+      if (uid == null) {
+        throw Exception('User ID could not be retrieved.');
+      }
+
+      final DocumentSnapshot userDoc =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+
       if (!mounted) return;
 
-      if (_selectedRole == 'admin') {
-        Navigator.push(
+      final Map<String, dynamic>? userData =
+          userDoc.data() as Map<String, dynamic>?;
+
+      if (!userDoc.exists || userData == null) {
+        await FirebaseAuth.instance.signOut();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'User profile not found in database. Please contact support or re-register.',
+            ),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
+
+      final String actualRole =
+          (userData['role'] ?? '').toString().toLowerCase().trim();
+
+      if (actualRole != _selectedRole) {
+        await FirebaseAuth.instance.signOut();
+        if (!mounted) return;
+        final String roleLabel =
+            actualRole == 'admin' ? 'Admin / Staff' : 'Member / Student';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              actualRole.isEmpty
+                  ? 'Role information is missing for this account.'
+                  : 'This account is registered as $roleLabel. Please switch the portal role and try again.',
+            ),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
+
+      if (actualRole == 'admin') {
+        Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const AdminDashboard()),
         );
-      } else {
-        Navigator.push(
+      } else if (actualRole == 'member') {
+        Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const MemberDashboardScreen()),
+        );
+      } else {
+        await FirebaseAuth.instance.signOut();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invalid role assigned to this account.'),
+            backgroundColor: Colors.redAccent,
+          ),
         );
       }
     } on FirebaseAuthException catch (e) {
@@ -73,6 +131,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message)),
+      );
+    } on FirebaseException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Database error: ${e.message ?? e.code}'),
+          backgroundColor: Colors.redAccent,
+        ),
       );
     } catch (e) {
       if (!mounted) return;
@@ -95,7 +161,6 @@ class _LoginScreenState extends State<LoginScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
           child: Column(
             children: [
-              // Top Bar with Sun / Moon Toggle
               Row(
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
@@ -109,13 +174,19 @@ class _LoginScreenState extends State<LoginScreen> {
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: Colors.grey.shade300),
                       ),
-                      child: const Icon(Icons.nightlight_round, size: 20, color: Color(0xFF64748B)),
+                      child: const Icon(
+                        Icons.nightlight_round,
+                        size: 20,
+                        color: Color(0xFF64748B),
+                      ),
                     ),
                     onPressed: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const PlaceholderScreen(title: 'Dark Mode Settings'),
+                          builder: (context) => const PlaceholderScreen(
+                            title: 'Dark Mode Settings',
+                          ),
                         ),
                       );
                     },
@@ -123,21 +194,21 @@ class _LoginScreenState extends State<LoginScreen> {
                 ],
               ),
               const SizedBox(height: 16),
-
-              // Smart Library Logo Asset
               Center(
                 child: Image.asset(
                   'assets/project_logo.png',
                   height: 100,
                   fit: BoxFit.contain,
                   errorBuilder: (context, error, stackTrace) {
-                    return Image.asset('assets/app_icon.png', height: 100, fit: BoxFit.contain);
+                    return Image.asset(
+                      'assets/app_icon.png',
+                      height: 100,
+                      fit: BoxFit.contain,
+                    );
                   },
                 ),
               ),
               const SizedBox(height: 20),
-
-              // Welcome Back Heading
               const Text(
                 'Welcome Back',
                 style: TextStyle(
@@ -160,8 +231,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-
-              // Form Container Card
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -178,7 +247,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Role Selector Header & Segmented Button / Toggle
                     const Text(
                       'Select Portal Role',
                       style: TextStyle(
@@ -204,9 +272,12 @@ class _LoginScreenState extends State<LoginScreen> {
                               },
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 200),
-                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 10),
                                 decoration: BoxDecoration(
-                                  color: _selectedRole == 'admin' ? const Color(0xFF0284C7) : Colors.transparent,
+                                  color: _selectedRole == 'admin'
+                                      ? const Color(0xFF0284C7)
+                                      : Colors.transparent,
                                   borderRadius: BorderRadius.circular(9),
                                 ),
                                 child: Row(
@@ -215,7 +286,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                     Icon(
                                       Icons.admin_panel_settings,
                                       size: 16,
-                                      color: _selectedRole == 'admin' ? Colors.white : const Color(0xFF64748B),
+                                      color: _selectedRole == 'admin'
+                                          ? Colors.white
+                                          : const Color(0xFF64748B),
                                     ),
                                     const SizedBox(width: 6),
                                     Text(
@@ -223,7 +296,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                       style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.bold,
-                                        color: _selectedRole == 'admin' ? Colors.white : const Color(0xFF64748B),
+                                        color: _selectedRole == 'admin'
+                                            ? Colors.white
+                                            : const Color(0xFF64748B),
                                       ),
                                     ),
                                   ],
@@ -238,9 +313,12 @@ class _LoginScreenState extends State<LoginScreen> {
                               },
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 200),
-                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 10),
                                 decoration: BoxDecoration(
-                                  color: _selectedRole == 'member' ? const Color(0xFF0284C7) : Colors.transparent,
+                                  color: _selectedRole == 'member'
+                                      ? const Color(0xFF0284C7)
+                                      : Colors.transparent,
                                   borderRadius: BorderRadius.circular(9),
                                 ),
                                 child: Row(
@@ -249,7 +327,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                     Icon(
                                       Icons.person,
                                       size: 16,
-                                      color: _selectedRole == 'member' ? Colors.white : const Color(0xFF64748B),
+                                      color: _selectedRole == 'member'
+                                          ? Colors.white
+                                          : const Color(0xFF64748B),
                                     ),
                                     const SizedBox(width: 6),
                                     Text(
@@ -257,7 +337,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                       style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.bold,
-                                        color: _selectedRole == 'member' ? Colors.white : const Color(0xFF64748B),
+                                        color: _selectedRole == 'member'
+                                            ? Colors.white
+                                            : const Color(0xFF64748B),
                                       ),
                                     ),
                                   ],
@@ -269,8 +351,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 20),
-
-                    // Email Address Field
                     const Text(
                       'Email Address',
                       style: TextStyle(
@@ -290,18 +370,29 @@ class _LoginScreenState extends State<LoginScreen> {
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
                         decoration: InputDecoration(
-                          hintText: _selectedRole == 'admin' ? 'admin@smartlibrary.edu' : 'student@smuct.edu.bd',
+                          hintText: _selectedRole == 'admin'
+                              ? 'admin@smartlibrary.edu'
+                              : 'student@smuct.edu.bd',
                           hintStyle: TextStyle(color: Colors.grey.shade500),
-                          prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFF64748B), size: 20),
-                          suffixIcon: const Icon(Icons.check_circle_outline, color: Color(0xFF10B981), size: 20),
+                          prefixIcon: const Icon(
+                            Icons.email_outlined,
+                            color: Color(0xFF64748B),
+                            size: 20,
+                          ),
+                          suffixIcon: const Icon(
+                            Icons.check_circle_outline,
+                            color: Color(0xFF10B981),
+                            size: 20,
+                          ),
                           border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 14,
+                          ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 20),
-
-                    // Password Field
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -317,7 +408,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           onTap: () {
                             Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
+                              MaterialPageRoute(
+                                builder: (_) => const ChangePasswordScreen(),
+                              ),
                             );
                           },
                           child: const Text(
@@ -344,10 +437,16 @@ class _LoginScreenState extends State<LoginScreen> {
                         decoration: InputDecoration(
                           hintText: 'Enter your password',
                           hintStyle: TextStyle(color: Colors.grey.shade500),
-                          prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFF64748B), size: 20),
+                          prefixIcon: const Icon(
+                            Icons.lock_outline,
+                            color: Color(0xFF64748B),
+                            size: 20,
+                          ),
                           suffixIcon: IconButton(
                             icon: Icon(
-                              _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                              _obscurePassword
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
                               color: Colors.grey,
                               size: 20,
                             ),
@@ -358,13 +457,14 @@ class _LoginScreenState extends State<LoginScreen> {
                             },
                           ),
                           border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 14,
+                          ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 16),
-
-                    // Remember Password Checkbox Row
                     Row(
                       children: [
                         SizedBox(
@@ -373,7 +473,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: Checkbox(
                             value: _rememberPassword,
                             activeColor: const Color(0xFF0284C7),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4),
+                            ),
                             onChanged: (val) {
                               setState(() {
                                 _rememberPassword = val ?? false;
@@ -384,7 +486,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(width: 8),
                         const Text(
                           'Remember this password',
-                          style: TextStyle(fontSize: 13, color: Color(0xFF475569)),
+                          style:
+                              TextStyle(fontSize: 13, color: Color(0xFF475569)),
                         ),
                         const Spacer(),
                         const Text(
@@ -394,8 +497,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                     ),
                     const SizedBox(height: 24),
-
-                    // Sign In Button
                     SizedBox(
                       width: double.infinity,
                       height: 50,
@@ -412,15 +513,24 @@ class _LoginScreenState extends State<LoginScreen> {
                             ? const SizedBox(
                                 width: 22,
                                 height: 22,
-                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2.5,
+                                ),
                               )
                             : Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Icon(Icons.login_rounded, color: Colors.white, size: 20),
+                                  const Icon(
+                                    Icons.login_rounded,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    _selectedRole == 'admin' ? 'Sign In as Admin' : 'Sign In as Member',
+                                    _selectedRole == 'admin'
+                                        ? 'Sign In as Admin'
+                                        : 'Sign In as Member',
                                     style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
@@ -434,21 +544,57 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 16),
                     const Divider(color: Color(0xFFF1F5F9)),
                     const SizedBox(height: 8),
-
-                    // Role Details Indicator
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
                           'Logging in as: ',
-                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
                         ),
                         Text(
-                          _selectedRole == 'admin' ? 'Librarian / Admin' : 'Library Member',
+                          _selectedRole == 'admin'
+                              ? 'Librarian / Admin'
+                              : 'Library Member',
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF0284C7),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          "Don't have an account? ",
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => RegistrationScreen(
+                                  initialRole: _selectedRole,
+                                ),
+                              ),
+                            );
+                          },
+                          child: const Text(
+                            'Register Now',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF0077B6),
+                            ),
                           ),
                         ),
                       ],
