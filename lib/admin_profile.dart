@@ -199,36 +199,89 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
 
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (sheetContext) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Top drag handle
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
                 ListTile(
-                  leading: const Icon(Icons.photo_library_outlined, color: Colors.blue),
-                  title: Text(hasPhoto ? 'Change Profile Photo' : 'Set Profile Photo'),
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.photo_library_outlined,
+                      color: Colors.blue.shade700,
+                      size: 22,
+                    ),
+                  ),
+                  title: const Text(
+                    'Choose Photo',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                    ),
+                  ),
+                  subtitle: const Text(
+                    'Select a photo from your device gallery',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
                   onTap: () {
                     Navigator.pop(sheetContext);
                     _pickProfilePhoto();
                   },
                 ),
-                if (hasPhoto)
+                if (hasPhoto) ...[
+                  const Divider(height: 8, indent: 16, endIndent: 16),
                   ListTile(
-                    leading: const Icon(Icons.delete_outline, color: Colors.red),
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.delete_outline,
+                        color: Colors.red,
+                        size: 22,
+                      ),
+                    ),
                     title: const Text(
-                      'Delete Profile Photo',
-                      style: TextStyle(color: Colors.red),
+                      'Delete Photo',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                        color: Colors.red,
+                      ),
+                    ),
+                    subtitle: const Text(
+                      'Remove current profile picture',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                     onTap: () {
                       Navigator.pop(sheetContext);
                       _deleteProfilePhoto();
                     },
                   ),
+                ],
               ],
             ),
           ),
@@ -392,10 +445,6 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bool hasPhoto =
-        (_photoBase64 != null && _photoBase64!.isNotEmpty) ||
-            (_localImagePath != null && _localImagePath!.isNotEmpty);
-
     return Scaffold(
       backgroundColor: Colors.blue.shade50,
       appBar: AppBar(
@@ -534,39 +583,6 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed:
-                                    _isUpdatingPhoto ? null : _pickProfilePhoto,
-                                icon: const Icon(Icons.upload, size: 16),
-                                label: Text(
-                                  hasPhoto ? 'Change Photo' : 'Set Photo',
-                                  style: const TextStyle(fontSize: 12),
-                                ),
-                              ),
-                            ),
-                            if (hasPhoto) ...[
-                              const SizedBox(width: 10),
-                              OutlinedButton.icon(
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: Colors.red.shade600,
-                                  side: BorderSide(color: Colors.red.shade200),
-                                ),
-                                onPressed: _isUpdatingPhoto
-                                    ? null
-                                    : _deleteProfilePhoto,
-                                icon: const Icon(Icons.delete_outline, size: 16),
-                                label: const Text(
-                                  'Delete',
-                                  style: TextStyle(fontSize: 12),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
                       ],
                     ),
                   ),
@@ -585,78 +601,61 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.contacts,
-                                  color: Colors.blue.shade700,
-                                  size: 18,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Contact Information',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.blue.shade900,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.green.shade50,
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Row(
-                                    children: const [
-                                      Icon(
-                                        Icons.check_circle,
-                                        size: 12,
-                                        color: Colors.green,
-                                      ),
-                                      SizedBox(width: 4),
-                                      Text(
-                                        'Verified Staff',
-                                        style: TextStyle(
-                                          color: Colors.green,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                IconButton(
-                                  visualDensity: VisualDensity.compact,
-                                  icon: Icon(
-                                    _isEditingContact
-                                        ? Icons.close
-                                        : Icons.edit_outlined,
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.contacts,
                                     color: Colors.blue.shade700,
-                                    size: 20,
+                                    size: 18,
                                   ),
-                                  onPressed: () {
-                                    setState(() {
-                                      if (_isEditingContact) {
-                                        _emailController.text = _email;
-                                        _phoneController.text = _phone;
-                                        _officeController.text = _office;
-                                        _isEditingContact = false;
-                                      } else {
-                                        _isEditingContact = true;
-                                      }
-                                    });
-                                  },
-                                ),
-                              ],
+                                  const SizedBox(width: 8),
+                                  Flexible(
+                                    child: Text(
+                                      'Contact Information',
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.blue.shade900,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
+                            if (!_isEditingContact)
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue.shade700,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 6,
+                                  ),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  elevation: 0,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _emailController.text = _email;
+                                    _phoneController.text = _phone;
+                                    _officeController.text = _office;
+                                    _isEditingContact = true;
+                                  });
+                                },
+                                child: const Text(
+                                  'Edit',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                         const SizedBox(height: 16),
@@ -709,41 +708,83 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
                               border: OutlineInputBorder(),
                             ),
                           ),
-                          const SizedBox(height: 14),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue.shade700,
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 12),
-                              ),
-                              onPressed:
-                                  _isSavingContact ? null : _saveContactInfo,
-                              icon: _isSavingContact
-                                  ? const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : const Icon(
-                                      Icons.save_outlined,
-                                      color: Colors.white,
-                                      size: 18,
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
                                     ),
-                              label: Text(
-                                _isSavingContact
-                                    ? 'Saving...'
-                                    : 'Save Contact Info',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
+                                    side: BorderSide(
+                                      color: Colors.grey.shade400,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  onPressed: _isSavingContact
+                                      ? null
+                                      : () {
+                                          setState(() {
+                                            _emailController.text = _email;
+                                            _phoneController.text = _phone;
+                                            _officeController.text = _office;
+                                            _isEditingContact = false;
+                                          });
+                                        },
+                                  child: Text(
+                                    'Cancel',
+                                    style: TextStyle(
+                                      color: Colors.grey.shade700,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.blue.shade700,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    elevation: 0,
+                                  ),
+                                  onPressed: _isSavingContact
+                                      ? null
+                                      : _saveContactInfo,
+                                  icon: _isSavingContact
+                                      ? const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : const Icon(
+                                          Icons.check,
+                                          color: Colors.white,
+                                          size: 18,
+                                        ),
+                                  label: Text(
+                                    _isSavingContact
+                                        ? 'Saving...'
+                                        : 'Save Changes',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ],
